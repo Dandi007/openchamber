@@ -10,7 +10,7 @@ v2.5.1 按当前目录判断 Chats；迁往未添加的仓库后，会话退出 
 
 会话 metadata 的 `openchamber.sidebar` 保存 `chats` 或 `project`。新建托管 Chats 时随创建请求写入 `chats`。普通目录迁移保留 metadata，刷新与其他客户端从同一 OpenCode 记录恢复归属。缺少属性的旧记录继续按目录分类，未知属性也按旧规则处理。
 
-共享列表分类、Chats 缓存、移动端列表与 Header 使用同一判断。文件访问、消息发送、目录同步和删除目录仍使用真实目录；显示归属不能授予删除项目目录的权限。
+共享列表分类、Chats 缓存、移动端列表与 Header 使用同一判断。Header 的普通菜单与 tabs 菜单均提供已有的“移到项目”操作。文件访问、消息发送、目录同步和删除目录仍使用真实目录；显示归属不能授予删除项目目录的权限。
 
 显式“移到项目”完成目录迁移后，将整个会话树标记为 `project`，根会话最后写入。写入失败继续显示原 Chats 入口并报告失败；目录可能已迁移，允许在同一目录重试归属保存。失败不会删除数据或静默报告成功。复用现有串行 metadata merge-patch 服务，保留其他字段。
 
@@ -41,3 +41,11 @@ v2.5.1 按当前目录判断 Chats；迁往未添加的仓库后，会话退出 
 基线为生产 v2.5.1 / 3e9ef4db。代码在独立 worktree 与用户 fork 的 PR 中交付，测试通过后 ready。发布前保存当前 release 指针与会话修复清单，使用构建产物发布；回滚切回旧 release。旧版忽略新增 metadata，消息与目录均可继续使用，但旧版的迁移可见性缺口仍存在。
 
 生产发布与 metadata 回填单独记录实际执行结果，PR ready 不代表已经上线。
+
+## 实际验证（2026-11-04）
+
+11 个相关测试文件分别运行，共 339 pass、0 fail，覆盖会话创建、真实 moved 事件处理、列表归属、缓存、tray、工作目录迁移与失败重试。`bun run check:changed -- --base v2.5.1` 全通过（保留 2 个已有 lint warning），`bun run build:web` 通过。
+
+Linux Chromium 隔离 Web 使用独立 HOME、数据库与本地 fixture provider：新建 Chats 随请求写入归属；实际 move API 迁到未添加目录后保持可见；刷新保留；后续 prompt 使用新目录；显式移到项目后退出 Chats。注入 sidebar metadata 请求 HTTP 500 后，目录已迁但会话仍在 Chats，页面显示失败；选择同一项目重试成功，刷新后 project 归属保留。
+
+Web 浏览器验收通过。Electron、VS Code、Hosted mobile 与 Capacitor 未做实机验收；共享逻辑有回归覆盖。生产候选旧记录 5 条的回填清单已生成，未执行回填或部署。

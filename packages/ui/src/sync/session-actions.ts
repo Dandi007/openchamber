@@ -1,3 +1,4 @@
+import { withSessionSidebar } from "@/lib/sessionChatMetadata"
 /**
  * Session actions — SDK-calling operations for session management.
  * Replaces the action methods from the old useSessionStore.
@@ -55,7 +56,7 @@ import { normalizePath } from "@/lib/pathNormalization"
 import { mergeMessages } from "./optimistic"
 import { trackPromptInFlight } from "./prompts-in-flight"
 import { messagesBefore, messagesFrom } from "./message-ordering"
-import { deleteChatDirectory } from "@/lib/chatDirectories"
+import { deleteChatDirectory, isChatDirectoryPath } from "@/lib/chatDirectories"
 import { createChatDraftIdentity } from "@/lib/chatDraftPersistence"
 import { cancelSessionTitleGeneration } from "./session-title-generation"
 import { recordSessionActionFailure } from "./session-action-failures"
@@ -1008,7 +1009,7 @@ export async function createSession(
     // wrong project (closes #1637, #2270).
     const effectiveDirectory = directoryOverride ?? dir()
     const session = await opencodeClient.createSession(
-      { title, metadata, model: selection?.model, agent: selection?.agent },
+      { title, metadata: isChatDirectoryPath(effectiveDirectory) ? withSessionSidebar(metadata ?? {}, "chats") : metadata, model: selection?.model, agent: selection?.agent },
       effectiveDirectory,
     )
 

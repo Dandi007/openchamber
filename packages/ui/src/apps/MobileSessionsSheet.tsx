@@ -1,3 +1,4 @@
+import { isChatSession } from '@/lib/sessionChatMetadata';
 import React from 'react';
 import { useSessionTurnActivity } from '@/sync/global-session-status';
 import { SessionActivityIndicator } from '@/components/session/SessionActivityIndicator';
@@ -48,7 +49,7 @@ import { ScrollShadow } from '@/components/ui/ScrollShadow';
 import { toast } from '@/components/ui';
 import { getProjectLabel, normalizePath } from './mobilePaths';
 import { SessionSearchInput } from '@/components/session/SessionSearchInput';
-import { CHAT_DRAFT_PROJECT_ID, isChatDirectoryPath } from '@/lib/chatDirectories';
+import { CHAT_DRAFT_PROJECT_ID } from '@/lib/chatDirectories';
 import { getDescendantIds, partitionSidebarSessions } from '@/components/session/sidebar/list/sessionCollection';
 import { rankByLatestActivity, sortProjectsByOrder } from '@/components/session/sidebar/list/projectSort';
 import { collectSessionSubtreeIds, runSessionSubtreeAction, type SessionSubtreeAction } from '@/components/session/sidebar/sessions/sessionSubtreeActions';
@@ -1085,7 +1086,7 @@ export const MobileSessionsSheet: React.FC<MobileSessionsSheetProps> = ({ open, 
     const ids = new Set<string>();
     if (!sessionWorkEnabled || !showWorkSection) return ids;
     for (const session of sessions) {
-      if (getParentId(session) || isChatDirectoryPath(getSessionDirectory(session)) || !isSessionInWork(session)) continue;
+      if (getParentId(session) || isChatSession(session) || !isSessionInWork(session)) continue;
       ids.add(session.id);
       for (const id of getDescendantIds(childrenBySessionId, session.id)) ids.add(id);
     }
@@ -1099,7 +1100,7 @@ export const MobileSessionsSheet: React.FC<MobileSessionsSheetProps> = ({ open, 
     if (!showPinnedSection) return ids;
     for (const session of sessions) {
       const directory = getSessionDirectory(session);
-      if (getParentId(session) || isChatDirectoryPath(directory) || !isSessionPinned(pinnedSessionIds, directory || null, session.id)) continue;
+      if (getParentId(session) || isChatSession(session) || !isSessionPinned(pinnedSessionIds, directory || null, session.id)) continue;
       ids.add(session.id);
       for (const id of getDescendantIds(childrenBySessionId, session.id)) ids.add(id);
     }
@@ -1624,7 +1625,7 @@ export const MobileSessionsSheet: React.FC<MobileSessionsSheetProps> = ({ open, 
 
   /** Track / Done for a top-level row while the feature is on. */
   const workActionFor = (session: Session): MobileSessionWorkAction | undefined => {
-    if (!sessionWorkEnabled || getParentId(session) || isChatDirectoryPath(getSessionDirectory(session))) return undefined;
+    if (!sessionWorkEnabled || getParentId(session) || isChatSession(session)) return undefined;
     const inWork = workSessionIds.has(session.id);
     return { inWork, onToggle: () => { void handleToggleWork(session, inWork); } };
   };
@@ -1751,7 +1752,7 @@ export const MobileSessionsSheet: React.FC<MobileSessionsSheetProps> = ({ open, 
   const buildSessionContextLabel = React.useCallback(
     (session: Session): string => {
       const directory = getSessionDirectory(session);
-      if (isChatDirectoryPath(directory)) return t('mobile.sessions.section.chats');
+      if (isChatSession(session)) return t('mobile.sessions.section.chats');
       const owner = sessionOwnership.bySessionId.get(session.id);
       const project = owner ? projectsMeta.find((candidate) => candidate.id === owner.projectId) ?? null : null;
       if (!project) return getProjectLabel(directory) || directory;

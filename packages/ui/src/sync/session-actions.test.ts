@@ -366,6 +366,7 @@ mock.module("./send-failure-classification", () => ({
 }))
 
 mock.module("@/lib/chatDirectories", () => ({
+  isChatDirectoryPath: (directory: string | null | undefined) => Boolean(directory?.startsWith("/home/test/.config/openchamber/chats/")),
   deleteChatDirectory: async (directory: string) => {
     deletedChatDirectories.push(directory)
   },

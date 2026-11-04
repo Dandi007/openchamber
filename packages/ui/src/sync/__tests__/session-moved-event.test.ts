@@ -5,6 +5,7 @@ import { getRuntimeKey } from "@/lib/runtime-switch"
 import { ChildStoreManager } from "../child-store"
 import { setActionRefs } from "../session-actions"
 import { createEventRoutingIndex, handleEvent } from "../sync-context"
+import { partitionSidebarSessions } from "@/components/session/sidebar/list/sessionCollection"
 
 const cleanups: Array<() => void> = []
 afterEach(() => { for (const cleanup of cleanups.splice(0).reverse()) cleanup() })
@@ -62,6 +63,21 @@ function setup() {
 }
 
 describe("session.moved", () => {
+  test("keeps a Chats session visible after moving to an unregistered directory and reloading", () => {
+    const { source, destination, receive } = setup()
+    source.setState({ session: [{ ...session(), metadata: { openchamber: { sidebar: "chats" } } }] })
+    for (const event of movedEvents()) receive(to, event)
+    const records = destination.getState().session
+    expect(records[0].directory).toBe(to)
+    expect(partitionSidebarSessions(records, false).chatSessions.map((record) => record.id)).toEqual(["ses_1"])
+    expect(partitionSidebarSessions(JSON.parse(JSON.stringify(records)), false).chatSessions.map((record) => record.id)).toEqual(["ses_1"])
+    expect(partitionSidebarSessions(records, true).chatSessions).toEqual([])
+    expect(partitionSidebarSessions(records, true).projectSessions).toEqual([])
+    receive(to, { type: "message.updated", properties: { info: { ...user, id: "msg_after", time: { created: 6 } } } })
+    expect(destination.getState().message.ses_1?.at(-1)?.id).toBe("msg_after")
+    expect(source.getState().message.ses_1).toBeUndefined()
+  })
+
   test("carries the session and its transcript to the destination store", () => {
     const { source, destination, receive } = setup()
 

@@ -1,3 +1,4 @@
+import { isChatSession } from '@/lib/sessionChatMetadata';
 import { SidebarTerminalActivity } from './SidebarTerminalActivity';
 import React from 'react';
 import type { Session } from '@/lib/opencode/model';
@@ -51,7 +52,7 @@ import type { SidebarViewMode } from '@/stores/useSessionDisplayStore';
 import { holdOrder, rankByLatestActivity } from './projectSort';
 import type { DeleteSessionConfirmState } from '../sessions/useSessionActions';
 import { useExpandedParents } from '../sessions/useExpandedParents';
-import { getChatsRootFromDirectory, isChatDirectoryPath } from '@/lib/chatDirectories';
+import { getChatsRootFromDirectory } from '@/lib/chatDirectories';
 import { useChatsRoot } from '@/hooks/useChatsRoot';
 import { isCapacitorApp } from '@/lib/platform';
 import { deriveTimelineActivityItems, matchZoneSessionsForSidebarQuery, pruneSessionTreeForSidebarQuery } from '../recent/activitySections';
@@ -454,7 +455,7 @@ const VisibleSessionProjects: React.FC<SessionProjectCollectionProps> = ({ topol
     const pinned: Session[] = [];
     const work: Session[] = [];
     for (const session of collection.orderedSessions) {
-      if (session.parentID || session.time?.archived || isChatDirectoryPath(session.directory)) continue;
+      if (session.parentID || session.time?.archived || isChatSession(session)) continue;
       if (showPinnedSection && isSessionPinned(collection.pinnedSessionIds, session.directory, session.id)) pinned.push(session);
       else if (showWork && isSessionInWork(session)) work.push(session);
     }

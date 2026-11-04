@@ -86,6 +86,16 @@ In work, and Timeline use this same ownership resolver; rows keep the session's
 own directory while taking display ownership (project id, labels) from the
 index.
 
+### Chats 的稳定显示归属
+
+`lib/sessionChatMetadata.ts` 管理 `metadata.openchamber.sidebar`。`chats` 会话在 OpenCode 迁移目录后仍归 Chats；`project` 表示用户显式归入项目。没有有效属性的旧记录按托管目录识别。Web、Electron、移动端列表与持久缓存共享判断；VS Code 仍排除 Chats。
+
+新建 Chats 将属性放入同一个 create 请求。普通 `session_move` 保持属性与真实运行目录各自独立。现有“移到项目”操作在目录迁移成功后写 `project`，根会话最后写入；失败报告错误，保留入口并允许同目录重试。
+
+### 为什么把归属保存在会话 metadata
+
+目录描述执行位置，metadata 描述用户选择的列表归属。同一服务器的客户端与刷新重载共享该属性，避免使用仅在当前浏览器有效的记忆。读取历史消息来推断归属会增加加载成本，并且无法可靠区分 agent 迁移与用户主动归类。旧版回填须使用可验证的来源清单。
+
 Web and desktop show managed Chats, then In work, then the projects. There is
 no Recent zone any more (removed 2026-10): In work holds the sessions being
 worked on, and the List view sorted by time answers "what was I doing" across
