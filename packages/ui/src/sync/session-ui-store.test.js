@@ -1225,6 +1225,20 @@ describe('sendMessage draft snapshot (issues #2222 / #2315)', () => {
     useSessionDisplayStore.setState({ singleProjectId: null });
   });
 
+  test('creates Chats with persistent ownership in the same request', async () => {
+    const calls = [];
+    opencodeClient.createSession = async (params, directory) => {
+      calls.push({ params, directory });
+      return { id: 'session-chat-marker', directory, metadata: params.metadata, time: { created: 1, updated: 1 } };
+    };
+    const { createSession } = await import('./session-actions');
+    const directory = '/Users/tester/.config/openchamber/chats/test/session';
+    const session = await createSession('Chat', directory, { keep: true, openchamber: { pinned: { at: 1 } } });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].directory).toBe(directory);
+    expect(session.metadata).toEqual({ keep: true, openchamber: { pinned: { at: 1 }, sidebar: 'chats' } });
+  });
+
   test('draft send snapshots the draft; switching to another project mid-flight still targets the materialized session', async () => {
     useProjectsStore.setState({
       projects: [

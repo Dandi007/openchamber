@@ -1,3 +1,4 @@
+import { isChatSession } from '@/lib/sessionChatMetadata';
 /**
  * Persisted child-store metadata caches.
  *
@@ -12,7 +13,6 @@ import type { Session, Vcs } from "@/lib/opencode/model"
 import type { ProjectMeta } from "./types"
 import { getRuntimeKey, subscribeRuntimeEndpointWillChange } from "@/lib/runtime-switch"
 import { countSyncPersistenceSerialization, countSyncPersistenceStorageWrite } from "./performance-diagnostics"
-import { isChatDirectoryPath } from "@/lib/chatDirectories"
 import { isVSCodeRuntime } from "@/lib/desktop"
 import { z } from "zod"
 
@@ -370,14 +370,14 @@ export function readManagedChatSessions(expectedRuntimeKey = getRuntimeKey()): S
   if (isVSCodeRuntime()) return []
   if (expectedRuntimeKey !== getRuntimeKey()) return []
   return readDirCache(MANAGED_CHATS_CACHE_SCOPE).sessions?.filter((session) => (
-    isChatDirectoryPath(session.directory)
+    isChatSession(session)
   )) ?? []
 }
 
 export function persistManagedChatSessions(sessions: Session[]): void {
   if (isVSCodeRuntime()) return
   persistSessions(MANAGED_CHATS_CACHE_SCOPE, sessions.filter((session) => (
-    isChatDirectoryPath(session.directory)
+    isChatSession(session)
   )))
 }
 
@@ -400,7 +400,7 @@ const globalSnapshotSchema = z.object({
  * snapshot, which is classified against the server-resolved chats root.
  */
 function isGlobalSnapshotSession(session: Session): boolean {
-  return !session.time?.archived && !isChatDirectoryPath(session.directory)
+  return !session.time?.archived && !isChatSession(session)
 }
 
 function writeGlobalSessionSnapshot(key: string, runtimeKey: string, sessions: Session[]): void {

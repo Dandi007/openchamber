@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import type { Session, SessionStatus } from '@/lib/opencode/model';
+import type { Metadata, Session, SessionStatus } from '@/lib/opencode/model';
 import type { State } from '@/sync/types';
 import type { WorktreeMetadata } from '@/types/worktree';
 import type { ProjectRef } from '@/lib/worktrees/worktreeManager';
@@ -11,6 +11,8 @@ const moveCalls: Array<{
   destinationDirectory: string;
 }> = [];
 const refreshCalls: string[][] = [];
+const sidebarWrites: Array<{ sessionId: string; metadata: Metadata }> = [];
+let failSidebarWrite = false;
 type RemoveProjectWorktreeCall = {
   projectDirectory: string;
   directory: string;
@@ -196,6 +198,11 @@ const getSessionLiveActivity = (sessionId: string): 'unknown' | 'idle' | 'active
 };
 
 mock.module('@/sync/session-actions', () => ({
+  patchSessionMetadata: async (sessionId: string, directory: string, update: (metadata: Metadata) => Metadata) => {
+    if (failSidebarWrite) throw new Error('metadata unavailable');
+    sidebarWrites.push({ sessionId, metadata: update({ openchamber: { sidebar: 'chats', pinned: { at: 1 } } }) });
+    return makeSession(sessionId, directory);
+  },
   moveSessionToDirectory: (session: Session, sourceDirectory: string, destinationDirectory: string) => {
     moveCalls.push({ sessionId: session.id, sourceDirectory, destinationDirectory });
     return moveSessionImplementation(session, sourceDirectory, destinationDirectory);
@@ -341,6 +348,8 @@ const getIncompleteRollbackCause = (error: Error): IncompleteRollbackCause => {
 describe('moveSessionTreeToExistingWorktree', () => {
   beforeEach(() => {
     moveCalls.length = 0;
+    sidebarWrites.length = 0;
+    failSidebarWrite = false;
     refreshCalls.length = 0;
     removeWorktreeCalls.length = 0;
     createQuickWorktreeCalls.length = 0;
@@ -373,6 +382,44 @@ describe('moveSessionTreeToExistingWorktree', () => {
 
   afterEach(() => {
     console.warn = originalConsoleWarn;
+  });
+
+  test('explicit project promotion persists ownership for descendants then root', async () => {
+    setStatuses('/source', { root: 'idle', child: 'idle' });
+    requestSessionTreeMove({ kind: 'project', root: makeSession('root'), descendants: [makeSession('child')],
+      sourceDirectory: '/source', projectDirectory: '/project', messages: makeMoveMessages() });
+    await waitFor(() => toastSuccesses.length === 1);
+    expect(sidebarWrites.map((write) => write.sessionId)).toEqual(['child', 'root']);
+    expect(sidebarWrites[1].metadata).toEqual({ openchamber: { sidebar: 'project', pinned: { at: 1 } } });
+    expect(moveCalls.map((call) => call.destinationDirectory)).toEqual(['/project', '/project']);
+  });
+
+  test('a rejected directory move leaves Chats ownership untouched', async () => {
+    setStatuses('/source', { root: 'idle' });
+    moveSessionImplementation = async () => { throw new Error('move rejected'); };
+    requestSessionTreeMove({ kind: 'project', root: makeSession('root'), descendants: [],
+      sourceDirectory: '/source', projectDirectory: '/project', messages: makeMoveMessages() });
+    await waitFor(() => toastErrors.length === 1);
+    expect(sidebarWrites).toEqual([]);
+    expect(toastSuccesses).toEqual([]);
+  });
+
+  test('metadata failure reports failure and promotion can be retried in the destination', async () => {
+    setStatuses('/source', { root: 'idle' });
+    failSidebarWrite = true;
+    requestSessionTreeMove({ kind: 'project', root: makeSession('root'), descendants: [],
+      sourceDirectory: '/source', projectDirectory: '/project', messages: makeMoveMessages() });
+    await waitFor(() => toastErrors.length === 1);
+    expect(sidebarWrites).toEqual([]);
+    expect(toastSuccesses).toEqual([]);
+    expect(moveCalls).toHaveLength(1);
+    failSidebarWrite = false;
+    setStatuses('/project', { root: 'idle' });
+    requestSessionTreeMove({ kind: 'project', root: makeSession('root', '/project'), descendants: [],
+      sourceDirectory: '/project', projectDirectory: '/project', messages: makeMoveMessages() });
+    await waitFor(() => toastSuccesses.length === 1);
+    expect(moveCalls).toHaveLength(1);
+    expect(sidebarWrites[0].metadata.openchamber).toEqual({ sidebar: 'project', pinned: { at: 1 } });
   });
 
   test('moves descendants before the root and refreshes both directories', async () => {

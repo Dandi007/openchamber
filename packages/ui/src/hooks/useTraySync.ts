@@ -1,3 +1,4 @@
+import { isChatSession } from '@/lib/sessionChatMetadata';
 import React from 'react';
 import type { Session } from '@/lib/opencode/model';
 import { canUseElectronDesktopIPC, invokeDesktop, isDesktopLocalOriginActive } from '@/lib/desktop';
@@ -26,7 +27,7 @@ import { useSessionUIStore } from '@/sync/session-ui-store';
 import { useGitStore } from '@/stores/useGitStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { resolveProjectForSessionDirectory, normalizeProjectPath } from '@/lib/projectResolution';
-import { CHAT_DRAFT_PROJECT_ID, isChatDirectoryPath } from '@/lib/chatDirectories';
+import { CHAT_DRAFT_PROJECT_ID } from '@/lib/chatDirectories';
 import { isSpaceDirectory } from '@/lib/spaces/space-route';
 import { sessionHasSidebarRow } from '@/lib/sidebarSessionRows';
 import { isSessionPinned } from '@/lib/sessionPins';
@@ -361,7 +362,7 @@ const buildSnapshot = (instanceName: string, includeTray: boolean): TraySnapshot
     const directory = resolveGlobalSessionDirectory(session);
     // A managed chat keeps its identity when its directory no longer sits under
     // the chats root, so the project id admits it too.
-    if (isChatDirectoryPath(directory) || session.projectID === CHAT_DRAFT_PROJECT_ID) return true;
+    if (isChatSession(session) || session.projectID === CHAT_DRAFT_PROJECT_ID) return true;
     if (isSpaceDirectory(directory)) return true;
     return resolveProjectForSessionDirectory(projects, worktreesByProject, directory) !== null;
   };

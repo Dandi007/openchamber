@@ -1,3 +1,4 @@
+import { isChatSession } from '@/lib/sessionChatMetadata';
 import React from 'react';
 import type { Session } from '@/lib/opencode/model';
 import { useLiveSessionsExcluding } from '@/sync/sync-context';
@@ -10,7 +11,6 @@ import { useGlobalSessionsStore } from '@/stores/useGlobalSessionsStore';
 import { useSessionPinnedStore } from '@/stores/useSessionPinnedStore';
 import { resolveGlobalSessionDirectory } from '@/stores/useGlobalSessionsStore';
 import { normalizePath } from '../utils';
-import { isChatDirectoryPath } from '@/lib/chatDirectories';
 import { isBtwSession } from '@/lib/sessionBtwMetadata';
 import type { GlobalSessionStructure } from '@/stores/globalSessionStructure';
 import { countSyncPerformance } from '@/sync/performance-diagnostics';
@@ -43,7 +43,7 @@ export const partitionSidebarSessions = (
   const chatSessions: Session[] = [];
   for (const session of sessions) {
     if (isBtwSession(session)) continue;
-    if (isChatDirectoryPath(session.directory)) {
+    if (isChatSession(session)) {
       if (isVSCode) continue;
       chatSessions.push(session);
       continue;

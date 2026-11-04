@@ -9,7 +9,9 @@ import { checkoutHoldsDirectory, findWorktreeHoldingDirectory } from '@/lib/work
 import { resolveWorktreeStartDirectory } from '@/lib/worktrees/worktreeStartDirectory';
 import { refreshGlobalSessionsForDirectories } from '@/stores/useGlobalSessionsStore';
 import { isAmbiguousSendFailure } from '@/sync/send-failure-classification';
-import { getSessionLiveActivity, isSessionBusyNow, moveSessionToDirectory } from '@/sync/session-actions';
+import { getSessionLiveActivity, isSessionBusyNow, moveSessionToDirectory, patchSessionMetadata } from '@/sync/session-actions';
+import { withSessionSidebar } from '@/lib/sessionChatMetadata';
+import { getRuntimeKey } from '@/lib/runtime-switch';
 import { useSessionUIStore } from '@/sync/session-ui-store';
 import type { WorktreeMetadata } from '@/types/worktree';
 import { waitForWorktreeGitReady } from '@/lib/worktrees/worktreeBootstrap';
@@ -318,10 +320,22 @@ const moveSessionTreeToProject = async (input: {
   sourceDirectory: string;
   projectDirectory: string;
 }): Promise<string> => {
-  if ((normalizePath(input.sourceDirectory) ?? input.sourceDirectory) === (normalizePath(input.projectDirectory) ?? input.projectDirectory)) {
-    throw new Error('Source and destination are the same');
+  const runtimeKey = getRuntimeKey();
+  const sessions = [...input.descendants, input.root];
+  const alreadyThere = (normalizePath(input.sourceDirectory) ?? input.sourceDirectory) === (normalizePath(input.projectDirectory) ?? input.projectDirectory);
+  if (alreadyThere) {
+    assertSessionsIdle(sessions);
+  } else {
+    await moveSessionTreeTransaction(input, async () => ({ directory: input.projectDirectory, metadata: null }));
   }
-  return moveSessionTreeTransaction(input, async () => ({ directory: input.projectDirectory, metadata: null }));
+  // A directory move alone preserves Chats. Only this explicit user action
+  // changes display ownership. On write failure the root stays reachable in
+  // Chats, and choosing the same project again retries the metadata writes.
+  for (const session of sessions) {
+    await patchSessionMetadata(session.id, input.projectDirectory,
+      (metadata) => withSessionSidebar(metadata, 'project'), runtimeKey);
+  }
+  return input.projectDirectory;
 };
 
 const moveSessionTreeToQuickWorktree = async (input: {

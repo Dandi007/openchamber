@@ -1,3 +1,4 @@
+import { isChatSession } from '@/lib/sessionChatMetadata';
 import React, { useEffect } from 'react';
 import { useGuestsStore } from '@/lib/guests/store';
 import {
@@ -85,6 +86,7 @@ const normalize = (value: string): string => {
 
 
 type HeaderSessionSnapshot = {
+  isChat: boolean;
   title: string | null;
   directory: string | null;
   created: number | null;
@@ -117,6 +119,7 @@ export const Header: React.FC = () => {
         created: session.time?.created ?? null,
         slug: record.slug ?? null,
         parentId: session.parentID ?? null,
+        isChat: isChatSession(session),
       };
     },
     [currentSessionId],
@@ -384,7 +387,7 @@ export const Header: React.FC = () => {
   const currentBranchLabel = gitBranchForDirectory || currentSessionWorktreeBranch || catalogWorktreeBranch;
   const isChatContext = isNewSessionDraftOpen
     ? draftTarget === 'chat'
-    : isChatDirectoryForHome(sessionDirectory || selectedSessionDirectory, homeDirectory);
+    : currentSession?.isChat ?? isChatDirectoryForHome(sessionDirectory || selectedSessionDirectory, homeDirectory);
 
   // Whether the title carries a second line under it. Hoisted because the
   // session menu's vertical alignment depends on the same answer.
@@ -1215,6 +1218,22 @@ export const Header: React.FC = () => {
                           >
                             <Icon name="folder-shared" className="me-1 size-4" />
                             {t('sessions.sidebar.session.menu.moveToWorktree')}
+                          </DropdownMenuItem>
+                        </span>
+                      </SessionMenuItemHint>
+                    ) : null}
+                    {!isVSCode && isChatContext && currentSession && !currentSession.parentId && hasProjects ? (
+                      <SessionMenuItemHint hint={isCurrentSessionActive
+                        ? t('sessions.sidebar.session.moveToWorktree.tooltipBusy')
+                        : t('sessions.moveChatToProject.hint')}>
+                        <span className="block">
+                          <DropdownMenuItem
+                            disabled={!sessionDirectory || isCurrentSessionActive || isCurrentSessionMovingToWorktree}
+                            onClick={() => setMoveChatDialogOpen(true)}
+                            className="w-full"
+                          >
+                            <Icon name="folder-shared" className="me-1 size-4" />
+                            {t('sessions.moveChatToProject.menu')}
                           </DropdownMenuItem>
                         </span>
                       </SessionMenuItemHint>
